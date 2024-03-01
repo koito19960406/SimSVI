@@ -140,3 +140,9 @@ dmypy.json
 
 # MacOS
 .DS_Store
+
+# figures
+figures/
+
+# csv files in docs
+docs/*.csv
