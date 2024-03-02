@@ -123,7 +123,9 @@ class SVISimulation:
         # Compute visibility contributions and sum them up
         if None in weights:
             print(camera_position)
-        visibility_contributions = weights * occlusion_proportions
+        visibility_contributions = weights * occlusion_proportions * self.expanded_scenario[
+            tree_positions[visual_range_mask][:, 0], tree_positions[visual_range_mask][:, 1]
+        ]
         total_visibility = visibility_contributions.sum()
 
         return total_visibility
@@ -325,9 +327,9 @@ class SVISimulation:
         df["year_month"] = (
             df["year"].astype(str) + "-" + df["month"].astype(str).str.zfill(2)
         )
-        df["camera_position"] = df["camera_position"].apply(
-            lambda x: str(x)
-        )  # Convert tuple to string for plotting
+        df["camera_position"] = df.apply(
+            lambda x: f"{x['camera_position_x']},{x['camera_position_y']}", axis=1
+        )
 
         fig, ax = plt.subplots(figsize=(14, 8))
         for camera_position, group in df.groupby("camera_position"):
@@ -388,7 +390,7 @@ class SVISimulation:
         # Mark the camera position
         ax.add_patch(
             Rectangle(
-                (self.camera_position[0] - 0.5, self.camera_position[1] - 0.5),
+                (self.camera_position[1] - 0.5, self.camera_position[0] - 0.5),
                 1,
                 1,
                 linewidth=2,
