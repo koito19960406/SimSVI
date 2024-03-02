@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "simsvi"
-version = "0.1.0"
+version = "0.1.1"
 description = "simulate SVI analysis in a simple way"
 authors = ["Koichi Ito"]
 license = "MIT"

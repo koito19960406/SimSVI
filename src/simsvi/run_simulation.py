@@ -1,22 +1,21 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
-from .simsvi import SVISimulation
-
+from simsvi import SVISimulation  # Adjust the import as necessary based on your project structure
 
 def run_simulation_with_params(params):
     simulation = SVISimulation(**params)
     simulation.run_simulation()
     return simulation.greenery_dict_list
 
-
-def run_multiple_simulations(parameters_list, max_workers=1):
+def run_multiple_simulations(parameters_list, max_workers=4):  # Adjust max_workers based on your CPU
     """
-    Run simulations with different parameters using ThreadPoolExecutor for concurrent execution.
+    Run simulations with different parameters using ProcessPoolExecutor for concurrent execution.
 
     :param parameters_list: List of dictionaries with parameters for each simulation.
+    :param max_workers: The maximum number of processes that can be used to execute the given calls.
     """
     results = []
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
         # Submit simulation tasks to the executor
         future_to_simulation = {
             executor.submit(run_simulation_with_params, params): params

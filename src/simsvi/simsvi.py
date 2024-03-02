@@ -27,6 +27,7 @@ class SVISimulation:
         self.seed = seed
         np.random.seed(seed)
         self.size = size
+        self.layer_weights = self.calculate_layer_weights()
         self.expanded_scenario_size = (
             size + 2 * camera_position_range,
             size,
@@ -54,7 +55,9 @@ class SVISimulation:
         self.tree_position = []
         self.dir_plot = dir_plot
         self.seed = seed
-        self.months_of_interest = months_of_interest if months_of_interest else list(range(1, 13))
+        self.months_of_interest = (
+            months_of_interest if months_of_interest else list(range(1, 13))
+        )
         self.create_expanded_scenario()
 
     def create_expanded_scenario(self):
@@ -87,112 +90,104 @@ class SVISimulation:
         for pos in self.tree_position:
             self.expanded_scenario[pos] = self.green_min  # Initial greenery level
 
+    def calculate_layer_weights(self):
+        max_layers = self.size // 2
+        layer_weight = 1 / max_layers
+        layer_weights = {}
+        
+        for layer in range(1, max_layers + 1):  # Start from 1 to exclude the center layer
+            num_cells_in_layer = layer * 8  # Calculate the number of cells in each layer
+            layer_weights[layer] = layer_weight / num_cells_in_layer  # Weight per cell in the layer
+        
+        return layer_weights
+
     def get_greenery(self):
-        # Assuming self.tree_position is a list of (x, y) tuples
-        tree_positions_array = np.array(self.tree_position)
+        tree_positions = np.array(self.tree_position)
+        camera_position = np.array(self.camera_position)
 
-        # Calculate distances from the camera to each tree position
-        camera_position_array = np.array(self.camera_position)
-        distances = np.abs(tree_positions_array - camera_position_array).sum(axis=1)
+        # Calculate Manhattan distances and determine layers
+        layers = np.abs(tree_positions - camera_position).max(axis=1)
 
-        # Filter trees within the visual range
-        visual_range_min = self.camera_position[0] - self.size // 2
-        visual_range_max = self.camera_position[0] + self.size // 2
-        within_visual_range = (tree_positions_array[:, 0] >= visual_range_min) & (tree_positions_array[:, 0] <= visual_range_max)
+        # Apply visual range mask
+        visual_range_mask = (
+            layers <= self.size // 2
+        )
+        layers_in_range = layers[visual_range_mask]
 
-        # Apply filtering
-        distances_in_range = distances[within_visual_range]
-        trees_in_range = tree_positions_array[within_visual_range]
+        # Map each tree's layer to its corresponding weight
+        weights = np.vectorize(self.layer_weights.get)(layers_in_range)
 
-        # Calculate layer counts and weights for each distance
-        layer_counts = self.calculate_layer_counts(distances_in_range)  # This needs to be implemented
-        weights = 1 / layer_counts
+        # Initialize an array for occlusion proportions
+        occlusion_proportions = np.ones_like(weights)  # Assuming no occlusion for simplification
 
-        # Assume occlusion_proportion is 1 for simplification
-        # For dynamic occlusion, further calculations would be needed
-        occlusion_proportions = np.ones_like(weights)
-
-        # Calculate weighted visibility
-        visibility_contributions = weights * occlusion_proportions * self.expanded_scenario[trees_in_range[:, 0], trees_in_range[:, 1]]
-
-        # Sum up the visibility contributions
+        # Compute visibility contributions and sum them up
+        if None in weights:
+            print(camera_position)
+        visibility_contributions = weights * occlusion_proportions
         total_visibility = visibility_contributions.sum()
 
         return total_visibility
 
-    def calculate_layer_counts(self, distances):
-        # Implement logic to calculate layer counts based on distances
-        # Placeholder for actual implementation
-        return np.maximum(1, 8 * distances)
+    # def calculate_layer_counts(self, distances):
+    #     # Vectorized layer count calculation based on Manhattan distance
+    #     return np.maximum(1, 8 * distances).astype(int)
 
-    def manhattan_distance_to_camera(self, tree_position):
-        camera_x, camera_y = self.camera_position
-        tree_x, tree_y = tree_position
-        return abs(camera_x - tree_x) + abs(camera_y - tree_y)
+    # def calculate_dynamic_occlusion(self, target_pos, tree_positions):
+    #     # Calculate occlusion based on the positions of other trees relative to the target tree
+    #     target_index = np.where((tree_positions == target_pos).all(axis=1))[0][0]
+    #     occlusion = 1.0
+    #     for i, pos in enumerate(tree_positions):
+    #         if i == target_index:
+    #             continue  # Skip the target tree itself
+    #         occlusion *= (1 - self.calculate_occlusion_factor(target_pos, pos))
+    #     return max(0, occlusion)
 
-    def calculate_dynamic_occlusion(self, target_tree_pos):
-        camera_x, camera_y = self.camera_position
-        visibility = 1.0  # Start with full visibility
+    # def calculate_occlusion_factor(self, target_tree_pos, other_tree_pos):
+    #     """
+    #     Calculate how much other_tree_pos occludes target_tree_pos.
+    #     Returns a factor between 0 (no occlusion) and 1 (full occlusion).
+    #     """
+    #     target_angle, target_distance = self.angle_and_distance_to_camera(
+    #         target_tree_pos
+    #     )
+    #     other_angle, other_distance = self.angle_and_distance_to_camera(other_tree_pos)
 
-        for other_tree_pos in self.tree_position:
-            if other_tree_pos == target_tree_pos:
-                continue  # Skip the target tree itself
+    #     if other_distance >= target_distance:
+    #         return 0  # Cannot occlude if it's not closer to the camera
 
-            occlusion_factor = self.calculate_occlusion_factor(
-                target_tree_pos, other_tree_pos
-            )
-            visibility *= (
-                1 - occlusion_factor
-            )  # Reduce visibility based on occlusion factor
+    #     angle_difference = abs(target_angle - other_angle)
+    #     distance_difference = target_distance - other_distance
 
-        return max(0, visibility)  # Ensure visibility doesn't go below 0
+    #     # Example occlusion calculation, can be adjusted
+    #     angle_threshold = self.calculate_angle_threshold(
+    #         target_distance, other_distance
+    #     )
+    #     if angle_difference > angle_threshold:
+    #         return 0  # No occlusion if outside angle threshold
 
-    def calculate_occlusion_factor(self, target_tree_pos, other_tree_pos):
-        """
-        Calculate how much other_tree_pos occludes target_tree_pos.
-        Returns a factor between 0 (no occlusion) and 1 (full occlusion).
-        """
-        target_angle, target_distance = self.angle_and_distance_to_camera(
-            target_tree_pos
-        )
-        other_angle, other_distance = self.angle_and_distance_to_camera(other_tree_pos)
+    #     # Simplified partial occlusion model
+    #     occlusion_factor = (1 - (angle_difference / angle_threshold)) * (
+    #         1 - distance_difference / target_distance
+    #     )
+    #     return occlusion_factor
 
-        if other_distance >= target_distance:
-            return 0  # Cannot occlude if it's not closer to the camera
+    # def angle_and_distance_to_camera(self, tree_pos):
+    #     """
+    #     Calculate the angle and Manhattan distance from the camera to tree_pos.
+    #     """
+    #     camera_x, camera_y = self.camera_position
+    #     tree_x, tree_y = tree_pos
+    #     angle = math.atan2(tree_y - camera_y, tree_x - camera_x)
+    #     distance = abs(camera_x - tree_x) + abs(camera_y - tree_y)  # Manhattan distance
+    #     return angle, distance
 
-        angle_difference = abs(target_angle - other_angle)
-        distance_difference = target_distance - other_distance
-
-        # Example occlusion calculation, can be adjusted
-        angle_threshold = self.calculate_angle_threshold(
-            target_distance, other_distance
-        )
-        if angle_difference > angle_threshold:
-            return 0  # No occlusion if outside angle threshold
-
-        # Simplified partial occlusion model
-        occlusion_factor = (1 - (angle_difference / angle_threshold)) * (
-            1 - distance_difference / target_distance
-        )
-        return occlusion_factor
-
-    def angle_and_distance_to_camera(self, tree_pos):
-        """
-        Calculate the angle and Manhattan distance from the camera to tree_pos.
-        """
-        camera_x, camera_y = self.camera_position
-        tree_x, tree_y = tree_pos
-        angle = math.atan2(tree_y - camera_y, tree_x - camera_x)
-        distance = abs(camera_x - tree_x) + abs(camera_y - tree_y)  # Manhattan distance
-        return angle, distance
-
-    def calculate_angle_threshold(self, tree_distance, other_tree_distance):
-        """
-        Determines the angle within which another tree can occlude the target tree.
-        Adjust based on simulation specifics.
-        """
-        base_angle = math.radians(5)  # Example threshold
-        return base_angle / max(1, abs(tree_distance - other_tree_distance))
+    # def calculate_angle_threshold(self, tree_distance, other_tree_distance):
+    #     """
+    #     Determines the angle within which another tree can occlude the target tree.
+    #     Adjust based on simulation specifics.
+    #     """
+    #     base_angle = math.radians(5)  # Example threshold
+    #     return base_angle / max(1, abs(tree_distance - other_tree_distance))
 
     def update_scenario(self):
         # Iterate through each tree position to update its greenery value based on the month
@@ -225,7 +220,6 @@ class SVISimulation:
     def update_tree_position(self):
         # Calculate the number of trees to add based on tree_change for the current year
         change_rate = self.tree_change[self.year - 1]
-        new_tree_count = int(len(self.tree_position) * (1 + change_rate))
 
         # Remove current tree positions from possible positions
         possible_positions = [
@@ -234,7 +228,7 @@ class SVISimulation:
 
         if change_rate > 0:
             # Calculate how many new trees to add
-            trees_to_add = new_tree_count - len(self.tree_position)
+            trees_to_add = int(len(self.tree_position) * change_rate)
             if trees_to_add > len(possible_positions):
                 warnings.warn(
                     "Not enough space to add more trees. Adding as many as possible."
@@ -249,7 +243,7 @@ class SVISimulation:
                 self.tree_position.append(possible_positions[index])
         elif change_rate < 0:
             # Calculate how many trees to remove
-            trees_to_remove = len(self.tree_position) - new_tree_count
+            trees_to_remove = int(len(self.tree_position) * abs(change_rate))
             if trees_to_remove > 0:
                 removed_positions = np.random.choice(
                     range(len(self.tree_position)), size=trees_to_remove, replace=False
@@ -262,7 +256,10 @@ class SVISimulation:
 
     def generate_camera_positions(self):
         # Generate all possible camera positions within the specified range around the original position
-        original_x, original_y = self.size // 2 + self.camera_position_range, self.size // 2  # Center
+        original_x, original_y = (
+            self.size // 2 + self.camera_position_range * 2,
+            self.size // 2,
+        )  # Center
         positions = [
             (x, y)
             for x in range(
@@ -282,7 +279,9 @@ class SVISimulation:
             self.year = year
             for month in range(1, 13):
                 self.month = month
-                if self.month in self.months_of_interest:  # Check if the month is of interest
+                if (
+                    self.month in self.months_of_interest
+                ):  # Check if the month is of interest
                     camera_positions = self.generate_camera_positions()
                     for cam_pos in camera_positions:
                         self.camera_position = cam_pos
@@ -291,25 +290,27 @@ class SVISimulation:
                             visible_greenery = self.get_greenery()
                         else:
                             visible_greenery = 0
-                        self.greenery_dict_list.append({
-                            "seed": self.seed,
-                            "size": self.size,
-                            "green_max": self.green_max,
-                            "green_min": self.green_min,
-                            "road_width": self.road_width,
-                            "tree_ratio": self.tree_ratio,
-                            "camera_position_range": self.camera_position_range,
-                            "hot_month": self.hot_month,
-                            "cold_month": self.cold_month,
-                            "tree_change": self.tree_change,
-                            "dir_plot": self.dir_plot,
-                            # Simulation specific data
-                            "year": year,
-                            "month": month,
-                            "camera_position_x": cam_pos[0],
-                            "camera_position_y": cam_pos[1],
-                            "green_view_index": visible_greenery,
-                        })
+                        self.greenery_dict_list.append(
+                            {
+                                "seed": self.seed,
+                                "size": self.size,
+                                "green_max": self.green_max,
+                                "green_min": self.green_min,
+                                "road_width": self.road_width,
+                                "tree_ratio": self.tree_ratio,
+                                "camera_position_range": self.camera_position_range,
+                                "hot_month": self.hot_month,
+                                "cold_month": self.cold_month,
+                                "tree_change": self.tree_change,
+                                "dir_plot": self.dir_plot,
+                                # Simulation specific data
+                                "year": year,
+                                "month": month,
+                                "camera_position_x": cam_pos[0],
+                                "camera_position_y": cam_pos[1],
+                                "green_view_index": visible_greenery,
+                            }
+                        )
                         if self.dir_plot:
                             self.plot_scenario()
             # run if not the last year
