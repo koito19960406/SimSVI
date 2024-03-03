@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
-import math
 import os
 import pandas as pd
 import matplotlib.colors as mcolors
@@ -52,7 +51,7 @@ class SVISimulation:
             size // 2,
         )  # Center position in the original scenario
         self.greenery_dict_list = []
-        self.tree_position = []
+        self.tree_positions = []
         self.dir_plot = dir_plot
         self.seed = seed
         self.months_of_interest = (
@@ -86,46 +85,90 @@ class SVISimulation:
             # Ensure trees are not placed on the road
             if (x, y) in possible_positions and (x, y) not in positions:
                 positions.add((x, y))
-        self.tree_position = list(positions)
-        for pos in self.tree_position:
+        self.tree_positions = list(positions)
+        for pos in self.tree_positions:
             self.expanded_scenario[pos] = self.green_min  # Initial greenery level
 
     def calculate_layer_weights(self):
         max_layers = self.size // 2
         layer_weight = 1 / max_layers
         layer_weights = {}
-        
-        for layer in range(1, max_layers + 1):  # Start from 1 to exclude the center layer
-            num_cells_in_layer = layer * 8  # Calculate the number of cells in each layer
-            layer_weights[layer] = layer_weight / num_cells_in_layer  # Weight per cell in the layer
-        
+
+        for layer in range(
+            1, max_layers + 1
+        ):  # Start from 1 to exclude the center layer
+            num_cells_in_layer = (
+                layer * 8
+            )  # Calculate the number of cells in each layer
+            layer_weights[layer] = (
+                layer_weight / num_cells_in_layer
+            )  # Weight per cell in the layer
+
         return layer_weights
 
+    def calculate_occlusion_factors(self, tree_positions, camera_position):
+        def convert_to_polar(coords):
+            delta = coords - camera_position
+            r = np.linalg.norm(delta, axis=1)
+            theta = np.arctan2(delta[:, 1], delta[:, 0])
+            return np.vstack((theta, r)).T
+
+        def group_by_angle(polar_trees):
+            # Use a dictionary to group trees by their angle
+            groups = {}
+            for idx, (theta, r) in enumerate(polar_trees):
+                if theta not in groups:
+                    groups[theta] = []
+                groups[theta].append((idx, r))
+            return groups
+
+        polar_trees = convert_to_polar(tree_positions)
+        angle_groups = group_by_angle(polar_trees)
+
+        occlusion_factors = np.ones(len(tree_positions))
+        for angle, group in angle_groups.items():
+            # Sort the group by distance
+            sorted_group = sorted(group, key=lambda x: x[1])
+            visible_tree_distance = 0
+            for idx, r in sorted_group:
+                if r > visible_tree_distance:
+                    # Assuming simple occlusion logic; refine based on your needs
+                    visible_tree_distance = r
+                    occlusion_factors[idx] = 1  # Fully visible
+                else:
+                    # This tree is occluded by a closer tree
+                    occlusion_factors[idx] = 0  # Fully occluded
+
+        return occlusion_factors
+
     def get_greenery(self):
-        tree_positions = np.array(self.tree_position)
+        tree_positions = np.array(self.tree_positions)
         camera_position = np.array(self.camera_position)
 
         # Calculate Manhattan distances and determine layers
         layers = np.abs(tree_positions - camera_position).max(axis=1)
 
         # Apply visual range mask
-        visual_range_mask = (
-            layers <= self.size // 2
-        )
+        visual_range_mask = layers <= self.size // 2
         layers_in_range = layers[visual_range_mask]
 
         # Map each tree's layer to its corresponding weight
         weights = np.vectorize(self.layer_weights.get)(layers_in_range)
 
-        # Initialize an array for occlusion proportions
-        occlusion_proportions = np.ones_like(weights)  # Assuming no occlusion for simplification
+        # Calculate occlusion factors for trees within the visual range
+        occlusion_proportions = self.calculate_occlusion_factors(
+            tree_positions[visual_range_mask], camera_position
+        )
 
         # Compute visibility contributions and sum them up
-        if None in weights:
-            print(camera_position)
-        visibility_contributions = weights * occlusion_proportions * self.expanded_scenario[
-            tree_positions[visual_range_mask][:, 0], tree_positions[visual_range_mask][:, 1]
-        ]
+        visibility_contributions = (
+            weights
+            * occlusion_proportions
+            * self.expanded_scenario[
+                tree_positions[visual_range_mask][:, 0],
+                tree_positions[visual_range_mask][:, 1],
+            ]
+        )
         total_visibility = visibility_contributions.sum()
 
         return total_visibility
@@ -193,7 +236,7 @@ class SVISimulation:
 
     def update_scenario(self):
         # Iterate through each tree position to update its greenery value based on the month
-        for x, y in self.tree_position:
+        for x, y in self.tree_positions:
             # Normalize months to radians, with January as 0 and December as 2π
             month_radians = 2 * np.pi * (self.month - 1) / 12
 
@@ -225,12 +268,12 @@ class SVISimulation:
 
         # Remove current tree positions from possible positions
         possible_positions = [
-            pos for pos in self.possible_positions if pos not in self.tree_position
+            pos for pos in self.possible_positions if pos not in self.tree_positions
         ]
 
         if change_rate > 0:
             # Calculate how many new trees to add
-            trees_to_add = int(len(self.tree_position) * change_rate)
+            trees_to_add = int(len(self.tree_positions) * change_rate)
             if trees_to_add > len(possible_positions):
                 warnings.warn(
                     "Not enough space to add more trees. Adding as many as possible."
@@ -242,17 +285,17 @@ class SVISimulation:
                 range(len(possible_positions)), size=trees_to_add, replace=False
             )
             for index in new_positions:
-                self.tree_position.append(possible_positions[index])
+                self.tree_positions.append(possible_positions[index])
         elif change_rate < 0:
             # Calculate how many trees to remove
-            trees_to_remove = int(len(self.tree_position) * abs(change_rate))
+            trees_to_remove = int(len(self.tree_positions) * abs(change_rate))
             if trees_to_remove > 0:
                 removed_positions = np.random.choice(
-                    range(len(self.tree_position)), size=trees_to_remove, replace=False
+                    range(len(self.tree_positions)), size=trees_to_remove, replace=False
                 )
-                self.tree_position = [
-                    self.tree_position[i]
-                    for i in range(len(self.tree_position))
+                self.tree_positions = [
+                    self.tree_positions[i]
+                    for i in range(len(self.tree_positions))
                     if i not in removed_positions
                 ]
 
@@ -288,7 +331,7 @@ class SVISimulation:
                     for cam_pos in camera_positions:
                         self.camera_position = cam_pos
                         self.update_scenario()
-                        if len(self.tree_position) > 0:
+                        if len(self.tree_positions) > 0:
                             visible_greenery = self.get_greenery()
                         else:
                             visible_greenery = 0

@@ -1,13 +1,19 @@
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
-from simsvi import SVISimulation  # Adjust the import as necessary based on your project structure
+from simsvi import (
+    SVISimulation,
+)  # Adjust the import as necessary based on your project structure
+
 
 def run_simulation_with_params(params):
     simulation = SVISimulation(**params)
     simulation.run_simulation()
     return simulation.greenery_dict_list
 
-def run_multiple_simulations(parameters_list, max_workers=4):  # Adjust max_workers based on your CPU
+
+def run_multiple_simulations(
+    parameters_list, max_workers=4
+):  # Adjust max_workers based on your CPU
     """
     Run simulations with different parameters using ProcessPoolExecutor for concurrent execution.
 
@@ -23,7 +29,11 @@ def run_multiple_simulations(parameters_list, max_workers=4):  # Adjust max_work
         }
 
         # As each simulation completes, process the results
-        for future in tqdm(as_completed(future_to_simulation), total=len(parameters_list), desc="Running simulations"):
+        for future in tqdm(
+            as_completed(future_to_simulation),
+            total=len(parameters_list),
+            desc="Running simulations",
+        ):
             params = future_to_simulation[future]
             try:
                 greenery_dict_list = future.result()
