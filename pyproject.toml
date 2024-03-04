@@ -15,6 +15,9 @@ pandas = "^2.2.1"
 tqdm = "^4.66.2"
 
 [tool.poetry.dev-dependencies]
+myst-nb = {version = "^1.0.0", python = "^3.9"}
+sphinx-autoapi = "^3.0.0"
+sphinx-rtd-theme = "^2.0.0"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.3"
