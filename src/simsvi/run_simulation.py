@@ -1,6 +1,6 @@
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
-from simsvi import (
+from .simsvi import (
     SVISimulation,
 )  # Adjust the import as necessary based on your project structure
 
