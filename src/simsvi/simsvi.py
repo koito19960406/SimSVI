@@ -8,22 +8,7 @@ import warnings
 
 
 class SVISimulation:
-    def __init__(
-        self,
-        size=31,
-        green_max=1,
-        green_min=0,
-        road_width=0.5,
-        tree_ratio=0.1,
-        camera_position_range=1,
-        hot_month=7,
-        cold_month=1,
-        tree_change=[0.1, -0.1],
-        dir_plot=False,
-        months_of_interest=None,  # Add this parameter
-        seed=42,
-    ):
-        """
+    """
         Simulates the seasonal variation of greenery in a scenario and calculates the green view index.
 
         :param size: Size of the street used in the simulation. Defaults to 31.
@@ -53,6 +38,21 @@ class SVISimulation:
 
         :raises NotImplementedError: If any methods are not implemented.
         """
+    def __init__(
+        self,
+        size=31,
+        green_max=1,
+        green_min=0,
+        road_width=0.5,
+        tree_ratio=0.1,
+        camera_position_range=1,
+        hot_month=7,
+        cold_month=1,
+        tree_change=[0.1, -0.1],
+        dir_plot=False,
+        months_of_interest=None,  # Add this parameter
+        seed=42,
+    ):
         self.seed = seed
         np.random.seed(seed)
         self.size = size
