@@ -9,35 +9,35 @@ import warnings
 
 class SVISimulation:
     """
-        Simulates the seasonal variation of greenery in a scenario and calculates the green view index.
+    Simulates the seasonal variation of greenery in a scenario and calculates the green view index.
 
-        :param size: Size of the street used in the simulation. Defaults to 31.
-        :type size: int, optional
-        :param green_max: Maximum intensity of greenery at each tree position. Defaults to 1.
-        :type green_max: int, optional
-        :param green_min: Minimum intensity of greenery at each tree position. Defaults to 0.
-        :type green_min: int, optional
-        :param road_width: Ratio of road (i.e., areas without trees) to the size of the street. Defaults to 0.5.
-        :type road_width: float, optional
-        :param tree_ratio: Ratio of trees to the number of positions available to trees. Defaults to 0.1.
-        :type tree_ratio: float, optional
-        :param camera_position_range: Range of fluctuations of camera positions. Defaults to 1.
-        :type camera_position_range: int, optional
-        :param hot_month: Month with green_max. Defaults to 7.
-        :type hot_month: int, optional
-        :param cold_month: Month with green_min. Defaults to 1.
-        :type cold_month: int, optional
-        :param tree_change: Changes in percentage of the number of trees. The length of this list corresponds to the number of years to simulate. Defaults to [0.1, -0.1].
-        :type tree_change: list, optional
-        :param dir_plot: Directory to save plots. Defaults to False.
-        :type dir_plot: bool, optional
-        :param months_of_interest: Months to simulate. Defaults to None.
-        :type months_of_interest: list, optional
-        :param seed: Random seed. Defaults to 42.
-        :type seed: int, optional
+    :param size: Size of the street used in the simulation. Defaults to 31.
+    :type size: int, optional
+    :param green_max: Maximum intensity of greenery at each tree position. Defaults to 1.
+    :type green_max: int, optional
+    :param green_min: Minimum intensity of greenery at each tree position. Defaults to 0.
+    :type green_min: int, optional
+    :param road_width: Ratio of road (i.e., areas without trees) to the size of the street. Defaults to 0.5.
+    :type road_width: float, optional
+    :param tree_ratio: Ratio of trees to the number of positions available to trees. Defaults to 0.1.
+    :type tree_ratio: float, optional
+    :param camera_position_range: Range of fluctuations of camera positions. Defaults to 1.
+    :type camera_position_range: int, optional
+    :param hot_month: Month with green_max. Defaults to 7.
+    :type hot_month: int, optional
+    :param cold_month: Month with green_min. Defaults to 1.
+    :type cold_month: int, optional
+    :param tree_change: Changes in percentage of the number of trees. The length of this list corresponds to the number of years to simulate. Defaults to [0.1, -0.1].
+    :type tree_change: list, optional
+    :param dir_plot: Directory to save plots. Defaults to False.
+    :type dir_plot: bool, optional
+    :param months_of_interest: Months to simulate. Defaults to None.
+    :type months_of_interest: list, optional
+    :param seed: Random seed. Defaults to 42.
+    :type seed: int, optional
 
-        :raises NotImplementedError: If any methods are not implemented.
-        """
+    :raises NotImplementedError: If any methods are not implemented.
+    """
     def __init__(
         self,
         size=31,
