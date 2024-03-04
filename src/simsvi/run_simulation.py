@@ -15,7 +15,7 @@ def run_multiple_simulations(
     parameters_list, max_workers=4
 ):  # Adjust max_workers based on your CPU
     """
-    Run simulations with different parameters using ProcessPoolExecutor for concurrent execution.
+    Run simulations with different parameters (i.e., parameters for SVISimulation) using ProcessPoolExecutor for concurrent execution.
 
     :param parameters_list: List of dictionaries with parameters for each simulation.
     :param max_workers: The maximum number of processes that can be used to execute the given calls.

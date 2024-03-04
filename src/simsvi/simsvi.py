@@ -23,6 +23,24 @@ class SVISimulation:
         months_of_interest=None,  # Add this parameter
         seed=42,
     ):
+        """Simulate the seasonal variation of greenery in a scenario and calculate the green view index.
+
+        Args:
+            size (int, optional): Size of the street used in the simulation. Defaults to 31.
+            green_max (int, optional): Maximum intensity of greenery at each tree position. Defaults to 1.
+            green_min (int, optional): Minimum intensity of greenery at each tree position. Defaults to 0.
+            road_width (float, optional): Ratio of road (i.e., areas without trees) to the size of the street. Defaults to 0.5.
+            tree_ratio (float, optional): Ratio of trees to the number of positions available to trees. Defaults to 0.1.
+            camera_position_range (int, optional): Range of fluctuations of camera positions. Defaults to 1.
+            hot_month (int, optional): Month with green_max. Defaults to 7.
+            cold_month (int, optional): Month with green_min. Defaults to 1.
+            tree_change (list, optional): Changes in percetange of the number of trees. The length of this list corresponds the number of years to simulate. Defaults to [0.1, -0.1].
+            dir_plot (bool, optional): Directory to save plots. Defaults to False.
+            months_of_interest (_type_, optional): Months to simulate. Defaults to None.
+
+        Raises:
+            ValueError: _description_
+        """
         self.seed = seed
         np.random.seed(seed)
         self.size = size
